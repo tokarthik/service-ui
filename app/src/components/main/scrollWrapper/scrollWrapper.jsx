@@ -25,7 +25,7 @@ import { Scrollbars } from 'react-custom-scrollbars';
 import { FOOTER_EVENTS } from 'components/main/analytics/events';
 import { forceCheck } from 'react-lazyload';
 import { Footer } from 'layouts/common/footer';
-import TopIcon from './img/top-inline.svg';
+import BackToTopIcon from './img/back-to-top-inline.svg';
 import styles from './scrollWrapper.scss';
 
 const cx = classNames.bind(styles);
@@ -33,6 +33,7 @@ const cx = classNames.bind(styles);
 @track()
 export class ScrollWrapper extends Component {
   static propTypes = {
+    initialScrollRight: PropTypes.bool,
     children: PropTypes.node,
     autoHide: PropTypes.bool,
     autoHeight: PropTypes.bool,
@@ -49,12 +50,15 @@ export class ScrollWrapper extends Component {
     thumbMinSize: PropTypes.number,
     withBackToTop: PropTypes.bool,
     withFooter: PropTypes.bool,
+    resetRequired: PropTypes.bool,
+    onReset: PropTypes.func,
     tracking: PropTypes.shape({
       trackEvent: PropTypes.func,
       getTrackingData: PropTypes.func,
     }).isRequired,
   };
   static defaultProps = {
+    initialScrollRight: false,
     children: null,
     autoHide: false,
     autoHeight: false,
@@ -73,21 +77,31 @@ export class ScrollWrapper extends Component {
     thumbMinSize: 30,
     withBackToTop: false,
     withFooter: false,
+    resetRequired: false,
+    onReset: () => {},
   };
   state = {
     showButton: false,
   };
 
-  componentDidMount = () => {
+  componentDidMount() {
+    this.props.initialScrollRight && this.scrollbars.scrollToRight();
     if (this.props.withBackToTop) {
       this.springSystem = new SpringSystem();
       this.spring = this.springSystem.createSpring();
       this.spring.addListener({ onSpringUpdate: this.handleSpringUpdate });
       this.stopScroll = false;
     }
-  };
+  }
 
-  componentWillUnmount = () => {
+  componentDidUpdate() {
+    if (this.props.resetRequired) {
+      this.scrollbars.scrollTop(0);
+      this.props.onReset();
+    }
+  }
+
+  componentWillUnmount() {
     if (this.props.withBackToTop) {
       this.springSystem.deregisterSpring(this.spring);
       this.springSystem.removeAllListeners();
@@ -95,13 +109,9 @@ export class ScrollWrapper extends Component {
       this.spring.destroy();
       this.spring = undefined;
     }
-  };
+  }
 
   getScrollTop = () => this.scrollbars.getScrollTop();
-
-  getScrollHeight = () => this.scrollbars.getScrollHeight();
-
-  getHeight = () => this.scrollbars.getHeight();
 
   setupRef = (scrollbars) => {
     this.scrollbars = scrollbars;
@@ -180,8 +190,10 @@ export class ScrollWrapper extends Component {
         {this.state.showButton && (
           <div className={cx('back-to-top')}>
             <button className={cx('back-to-top-button')} onClick={this.scrollTop}>
-              <i className={cx('top-icon')}>{Parser(TopIcon)}</i>
-              <FormattedMessage id="ScrollWrapper.backToTop" defaultMessage="Back to top" />
+              <i className={cx('top-icon')}>{Parser(BackToTopIcon)}</i>
+              <div className={cx('message')}>
+                <FormattedMessage id="ScrollWrapper.backToTop" defaultMessage="Back to top" />
+              </div>
             </button>
           </div>
         )}

@@ -33,6 +33,7 @@ export const LAUNCHES_QUANTITY = 'launchesQuantity';
 export const EXECUTIONS = 'executions';
 export const DEFECTS = 'defects';
 export const TOTAL_KEY = 'total';
+export const DURATION = 'duration';
 
 export const COLORS = {
   [TO_INVESTIGATE]: AVAILABLE_COLORS[`COLOR_${TO_INVESTIGATE.toUpperCase()}`],
@@ -42,4 +43,13 @@ export const COLORS = {
   [SYSTEM_ISSUE]: AVAILABLE_COLORS[`COLOR_${SYSTEM_ISSUE.toUpperCase()}`],
 };
 
+export const TIME_TYPES = {
+  SECONDS: 'seconds',
+  MINUTES: 'minutes',
+  HOURS: 'hours',
+};
+
 export const CHART_OFFSET = 40.5;
+
+export const STATE_RENDERING = 'rendering';
+export const STATE_READY = 'ready';

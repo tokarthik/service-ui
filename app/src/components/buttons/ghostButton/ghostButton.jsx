@@ -28,25 +28,34 @@ export const GhostButton = ({
   title,
   color,
   icon,
+  active,
   iconAtRight,
   onClick,
   tiny,
   notMinified,
   mobileDisabled,
   transparentBorder,
+  transparentBorderHover,
+  strokedIcon,
+  filledIcon,
   large,
   style,
+  transparentBackground,
 }) => {
-  const classes = cx({
-    'ghost-button': true,
+  const classes = cx('ghost-button', {
     disabled,
     tiny,
     large,
+    active,
     [`color-${color}`]: color,
     'with-icon': icon,
+    'stroked-icon': strokedIcon,
+    'filled-icon': filledIcon,
     'mobile-minified': icon && children && !notMinified,
     'mobile-disabled': mobileDisabled,
     'transparent-border': transparentBorder,
+    'transparent-border-hover': transparentBorderHover,
+    'transparent-background': transparentBackground,
   });
   return (
     <button
@@ -70,6 +79,7 @@ export const GhostButton = ({
 GhostButton.propTypes = {
   children: PropTypes.node,
   disabled: PropTypes.bool,
+  active: PropTypes.bool,
   tiny: PropTypes.bool,
   mobileDisabled: PropTypes.bool,
   iconAtRight: PropTypes.bool,
@@ -80,8 +90,12 @@ GhostButton.propTypes = {
   type: PropTypes.string,
   onClick: PropTypes.func,
   transparentBorder: PropTypes.bool,
+  transparentBorderHover: PropTypes.bool,
   large: PropTypes.bool,
   style: PropTypes.object,
+  filledIcon: PropTypes.bool,
+  strokedIcon: PropTypes.bool,
+  transparentBackground: PropTypes.bool,
 };
 
 GhostButton.defaultProps = {
@@ -91,12 +105,17 @@ GhostButton.defaultProps = {
   mobileDisabled: false,
   iconAtRight: false,
   notMinified: false,
+  active: false,
   title: '',
   color: 'topaz',
   icon: '',
   type: 'button',
   onClick: () => {},
   transparentBorder: false,
+  transparentBorderHover: false,
   large: false,
   style: null,
+  filledIcon: true,
+  strokedIcon: false,
+  transparentBackground: false,
 };

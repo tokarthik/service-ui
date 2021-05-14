@@ -23,8 +23,10 @@ import track from 'react-tracking';
 import RefreshIcon from 'common/img/refresh-inline.svg';
 import { HISTORY_PAGE_EVENTS } from 'components/main/analytics/events';
 import { breadcrumbsSelector, restorePathAction } from 'controllers/testItem';
+import { isEmptyHistorySelector } from 'controllers/itemsHistory';
 import { Breadcrumbs, breadcrumbDescriptorShape } from 'components/main/breadcrumbs';
 import { GhostButton } from 'components/buttons/ghostButton';
+import { ParentInfo } from 'pages/inside/common/infoLine/parentInfo';
 import { CompareWithFilterControl } from './compareWithFilterControl';
 import styles from './actionPanel.scss';
 
@@ -33,6 +35,7 @@ const cx = classNames.bind(styles);
 @connect(
   (state) => ({
     breadcrumbs: breadcrumbsSelector(state),
+    isEmptyHistory: isEmptyHistorySelector(state),
   }),
   {
     restorePath: restorePathAction,
@@ -50,6 +53,8 @@ export class ActionPanel extends Component {
     buttons: PropTypes.array,
     hasErrors: PropTypes.bool,
     showBreadcrumbs: PropTypes.bool,
+    isEmptyHistory: PropTypes.bool,
+    parentItem: PropTypes.object,
     onRefresh: PropTypes.func,
     restorePath: PropTypes.func,
   };
@@ -59,7 +64,9 @@ export class ActionPanel extends Component {
     customBlock: null,
     buttons: [],
     hasErrors: false,
+    isEmptyHistory: false,
     showBreadcrumbs: true,
+    parentItem: null,
     onRefresh: () => {},
     restorePath: () => {},
   };
@@ -77,6 +84,8 @@ export class ActionPanel extends Component {
       hasErrors,
       buttons,
       customBlock,
+      isEmptyHistory,
+      parentItem,
     } = this.props;
 
     return (
@@ -84,8 +93,9 @@ export class ActionPanel extends Component {
         {showBreadcrumbs && <Breadcrumbs descriptors={breadcrumbs} onRestorePath={restorePath} />}
         {customBlock}
         <div className={cx('action-buttons')}>
+          {parentItem && <ParentInfo parentItem={parentItem} />}
           <div className={cx('action-button')}>
-            <CompareWithFilterControl disabled={!showBreadcrumbs} />
+            <CompareWithFilterControl disabled={!showBreadcrumbs || isEmptyHistory} />
           </div>
           {!!buttons.length &&
             buttons.map((button, index) => (
@@ -99,6 +109,7 @@ export class ActionPanel extends Component {
               icon={RefreshIcon}
               onClick={this.refreshItemsAction}
               disabled={!showBreadcrumbs}
+              transparentBackground
             >
               <FormattedMessage id="Common.refresh" defaultMessage="Refresh" />
             </GhostButton>

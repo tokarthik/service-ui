@@ -87,12 +87,18 @@ export class SamlFormFields extends Component {
       { value: false, label: 'First & last name' },
     ];
     this.state = {
-      isFullNameAttributeMode: false,
+      isFullNameAttributeMode: !!props.initialData[FULL_NAME_ATTRIBUTE_KEY],
     };
   }
 
   componentDidMount() {
     this.props.initialize(this.props.initialData);
+  }
+
+  componentDidUpdate(prevProps) {
+    if (prevProps.initialData.fullNameAttribute !== this.props.initialData.fullNameAttribute) {
+      this.props.initialize(this.props.initialData);
+    }
   }
 
   onChangeNameAttributesMode = (isFullNameAttributeMode) => {
@@ -185,6 +191,7 @@ export class SamlFormFields extends Component {
             name={FULL_NAME_ATTRIBUTE_KEY}
             disabled={disabled}
             label={formatMessage(messages.fullNameAttribute)}
+            validate={commonValidators.requiredField}
             lineAlign={lineAlign}
             required
           >

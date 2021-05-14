@@ -20,7 +20,6 @@ import {
   createValidationErrorsSelector,
   createLastOperationSelector,
 } from 'controllers/groupOperations';
-import { HISTORY_PAGE, payloadSelector, querySelector } from 'controllers/pages';
 import { normalizeHistoryItem, calculateMaxRowItemsCount } from './utils';
 
 const domainSelector = (state) => state.itemsHistory || {};
@@ -30,7 +29,9 @@ export const selectedHistoryItemsSelector = createSelectedItemsSelector(groupOpe
 export const validationErrorsSelector = createValidationErrorsSelector(groupOperationsSelector);
 export const lastOperationSelector = createLastOperationSelector(groupOperationsSelector);
 
-export const itemsHistorySelector = (state) => domainSelector(state).history;
+export const itemsHistorySelector = (state) => domainSelector(state).history || [];
+
+export const isEmptyHistorySelector = (state) => !itemsHistorySelector(state).length;
 
 export const historyPaginationSelector = (state) => domainSelector(state).pagination;
 
@@ -44,16 +45,6 @@ export const loadingSelector = (state) => domainSelector(state).loading;
 export const filterForCompareSelector = (state) => domainSelector(state).filterForCompare;
 
 export const filterHistorySelector = (state) => domainSelector(state).filterHistory;
-
-export const historyPageLinkSelector = createSelector(
-  payloadSelector,
-  querySelector,
-  (payload, query) => ({
-    type: HISTORY_PAGE,
-    payload,
-    query: { ...query },
-  }),
-);
 
 export const historySelector = createSelector(
   itemsHistorySelector,

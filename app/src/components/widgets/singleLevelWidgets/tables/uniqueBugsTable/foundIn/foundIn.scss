@@ -15,9 +15,13 @@
  */
 
 .found-in-col {
-  width: 40%;
+  width: 65%;
   font-size: 13px;
   line-height: 18px;
+
+  @media (max-width: $SCREEN_XS_MAX) {
+    width: 100%;
+  }
 
   .item {
     overflow: hidden;
@@ -25,7 +29,7 @@
   }
 
   .found-link {
-    color: $COLOR--windows-blue;
+    color: $COLOR--topaz;
     text-decoration: none;
   }
 

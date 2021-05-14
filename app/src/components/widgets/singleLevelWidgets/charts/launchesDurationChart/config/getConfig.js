@@ -14,14 +14,16 @@
  * limitations under the License.
  */
 
-import { COMMON_LOCALE_KEYS } from 'common/constants/localization';
 import { COLOR_CHART_DURATION, COLOR_INTERRUPTED } from 'common/constants/colors';
 import {
   getLaunchAxisTicks,
   transformCategoryLabelByDefault,
 } from 'components/widgets/common/utils';
 import { createTooltipRenderer } from 'components/widgets/common/tooltip';
-import { DURATION, isValueInterrupted, prepareChartData, calculateTooltipParams } from './utils';
+import { messages } from 'components/widgets/common/messages';
+import { CHART_MODES, MODES_VALUES } from 'common/constants/chartModes';
+import { DURATION } from 'components/widgets/common/constants';
+import { isValueInterrupted, prepareChartData, calculateTooltipParams } from './utils';
 import { LaunchesDurationTooltip } from './launchesDurationTooltip';
 
 export const getConfig = ({
@@ -37,7 +39,7 @@ export const getConfig = ({
   return {
     data: {
       columns: [chartData],
-      type: 'bar',
+      type: MODES_VALUES[CHART_MODES.BAR_VIEW],
       groups: [[DURATION]],
       color: (color, d) => {
         const item = itemsData[d.index];
@@ -78,7 +80,7 @@ export const getConfig = ({
           bottom: 0,
         },
         label: {
-          text: formatMessage(COMMON_LOCALE_KEYS.SECONDS),
+          text: formatMessage(messages[timeType.type]),
           position: 'outer-center',
         },
       },

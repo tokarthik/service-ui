@@ -17,12 +17,13 @@
 import React, { Component, Fragment } from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
+import Parser from 'html-react-parser';
 import { showDefaultErrorNotification } from 'controllers/notification';
 import {
   namedProjectIntegrationsSelectorsMap,
   namedGlobalIntegrationsSelectorsMap,
 } from 'controllers/plugins';
-import { PLUGIN_IMAGES_MAP, PLUGIN_NAME_TITLES } from '../../constants';
+import { PLUGIN_IMAGES_MAP, PLUGIN_NAME_TITLES, PLUGIN_DEFAULT_IMAGE } from '../../constants';
 import { PLUGIN_DESCRIPTIONS_MAP } from '../../messages';
 import { InfoSection } from './infoSection';
 import { InstancesSection } from './instancesSection';
@@ -48,6 +49,7 @@ export class IntegrationInfoContainer extends Component {
   static propTypes = {
     onItemClick: PropTypes.func.isRequired,
     integrationType: PropTypes.object.isRequired,
+    showToggleConfirmationModal: PropTypes.func.isRequired,
     projectIntegrations: PropTypes.array.isRequired,
     globalIntegrations: PropTypes.array.isRequired,
     showDefaultErrorNotification: PropTypes.func.isRequired,
@@ -72,17 +74,21 @@ export class IntegrationInfoContainer extends Component {
       removePluginSuccessCallback,
       onToggleActive,
       isGlobal,
+      showToggleConfirmationModal,
     } = this.props;
 
     return (
       <Fragment>
         <InfoSection
-          image={PLUGIN_IMAGES_MAP[name]}
-          description={PLUGIN_DESCRIPTIONS_MAP[name]}
+          image={PLUGIN_IMAGES_MAP[name] || PLUGIN_DEFAULT_IMAGE}
+          description={
+            PLUGIN_DESCRIPTIONS_MAP[name] || (details.description && Parser(details.description))
+          }
           title={PLUGIN_NAME_TITLES[name]}
           version={details.version}
           data={integrationType}
           onToggleActive={onToggleActive}
+          showToggleConfirmationModal={showToggleConfirmationModal}
           isGlobal={isGlobal}
         />
         <InstancesSection

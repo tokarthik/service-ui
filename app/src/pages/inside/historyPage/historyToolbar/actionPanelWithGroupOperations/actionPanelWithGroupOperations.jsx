@@ -119,6 +119,7 @@ export class ActionPanelWithGroupOperations extends Component {
     enabledBtsPlugins: PropTypes.array,
     isBtsPluginsExist: PropTypes.bool,
     debugMode: PropTypes.bool,
+    parentItem: PropTypes.object,
     getDefectType: PropTypes.func,
     onRefresh: PropTypes.func,
     onUnselect: PropTypes.func,
@@ -142,6 +143,7 @@ export class ActionPanelWithGroupOperations extends Component {
     enabledBtsPlugins: [],
     isBtsPluginsExist: false,
     debugMode: false,
+    parentItem: null,
     getDefectType: () => {},
     onRefresh: () => {},
     onUnselect: () => {},
@@ -275,6 +277,7 @@ export class ActionPanelWithGroupOperations extends Component {
           callback: this.unselectAndRefreshItems,
         }),
       userId,
+      parentLaunch: this.props.parentLaunch,
       eventsInfo: {
         closeIcon: HISTORY_PAGE_EVENTS.DELETE_ITEM_MODAL_EVENTS.CLOSE_ICON_DELETE_ITEM_MODAL,
         cancelBtn: HISTORY_PAGE_EVENTS.DELETE_ITEM_MODAL_EVENTS.CANCEL_BTN_DELETE_ITEM_MODAL,
@@ -346,7 +349,14 @@ export class ActionPanelWithGroupOperations extends Component {
   };
 
   render() {
-    const { selectedItems, validationErrors, onUnselect, onUnselectAll, onRefresh } = this.props;
+    const {
+      selectedItems,
+      validationErrors,
+      onUnselect,
+      onUnselectAll,
+      onRefresh,
+      parentItem,
+    } = this.props;
     const hasErrors = selectedItems.some((item) => !!validationErrors[item.id]);
 
     return (
@@ -365,6 +375,7 @@ export class ActionPanelWithGroupOperations extends Component {
           customBlock={this.getCustomBlock(hasErrors)}
           hasErrors={hasErrors}
           showBreadcrumbs={selectedItems.length === 0}
+          parentItem={parentItem}
         />
       </Fragment>
     );

@@ -20,10 +20,10 @@ import PropTypes from 'prop-types';
 import classNames from 'classnames/bind';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
-import { reduxForm } from 'redux-form';
+import { formValueSelector, reduxForm } from 'redux-form';
 import moment from 'moment';
 import { URLS } from 'common/urls';
-import { fetch } from 'common/utils';
+import { fetch, secondsToDays } from 'common/utils';
 import { canUpdateSettings } from 'common/utils/permissions';
 import { Input } from 'components/inputs/input';
 import { InputDropdown } from 'components/inputs/inputDropdown';
@@ -37,6 +37,7 @@ import {
 } from 'controllers/project';
 import { SETTINGS_PAGE_EVENTS } from 'components/main/analytics/events';
 import { FormField } from 'components/fields/formField';
+
 import { activeProjectRoleSelector, userAccountRoleSelector } from 'controllers/user';
 import { projectIdSelector } from 'controllers/pages';
 import { showNotification, NOTIFICATION_TYPES } from 'controllers/notification';
@@ -48,11 +49,7 @@ const cx = classNames.bind(styles);
 
 const hoursToSeconds = (hours) => moment.duration(hours, 'hours').asSeconds();
 const daysToSeconds = (days) => moment.duration(days, 'days').asSeconds();
-const secondsToDays = (seconds, locale) =>
-  moment
-    .duration(seconds, 'seconds')
-    .locale(locale)
-    .humanize({ d: Number.MAX_SAFE_INTEGER });
+const selector = formValueSelector('generalForm');
 
 @reduxForm({
   form: 'generalForm',
@@ -64,6 +61,7 @@ const secondsToDays = (seconds, locale) =>
     accountRole: userAccountRoleSelector(state),
     userRole: activeProjectRoleSelector(state),
     lang: langSelector(state),
+    formValues: selector(state, 'keepLaunches', 'keepLogs', 'keepScreenshots'),
   }),
   {
     showNotification,
@@ -93,21 +91,24 @@ export class GeneralTab extends Component {
       getTrackingData: PropTypes.func,
     }).isRequired,
     lang: PropTypes.string,
+    retention: PropTypes.number,
+    formValues: PropTypes.object,
   };
 
   static defaultProps = {
     projectId: '',
     fetchProjectAction: () => {},
     lang: 'en',
+    retention: null,
   };
 
   componentDidMount() {
     const { interruptJobTime, keepLogs, keepScreenshots, keepLaunches } = this.props.jobConfig;
     this.props.initialize({
       interruptJobTime: Number(interruptJobTime),
-      keepLaunches: Number(keepLaunches),
-      keepLogs: Number(keepLogs),
-      keepScreenshots: Number(keepScreenshots),
+      keepLaunches: Number(this.getMinRetentionValue(keepLaunches)),
+      keepLogs: Number(this.getMinRetentionValue(keepLogs)),
+      keepScreenshots: Number(this.getMinRetentionValue(keepScreenshots)),
     });
   }
 
@@ -156,6 +157,30 @@ export class GeneralTab extends Component {
     { label: this.props.intl.formatMessage(Messages.week1), value: daysToSeconds(7) },
   ];
 
+  getMinRetentionValue = (value) => {
+    const { retention } = this.props;
+
+    return retention === null || retention > value || retention === 0 ? value : retention;
+  };
+
+  getRetentionOptions = () => {
+    const { retention, lang } = this.props;
+
+    if (!retention || retention === 0) {
+      return this.retentionOptions;
+    }
+
+    const options = this.retentionOptions.filter(
+      (option) => option.value <= retention && option.value !== 0,
+    );
+
+    if ((options.length && options[options.length - 1].value !== retention) || !options.length) {
+      options.push({ label: secondsToDays(retention, lang), value: retention });
+    }
+
+    return options;
+  };
+
   createValueFormatter = (values) => (value) => {
     const selectedOption = values.find((option) => option.value === value);
     if (selectedOption) {
@@ -164,7 +189,71 @@ export class GeneralTab extends Component {
     return { label: secondsToDays(value, this.props.lang), value };
   };
 
-  formatRetention = this.createValueFormatter(this.retentionOptions);
+  formatRetention = this.createValueFormatter(this.getRetentionOptions());
+
+  formatInputValues = () => {
+    const { formValues } = this.props;
+    if (!formValues) {
+      return [];
+    }
+    const arrValues = Object.entries(formValues).map((elem) => {
+      const [key, value] = elem;
+      return value === 0 ? [key, Infinity] : elem;
+    });
+    const mapValues = new Map(arrValues);
+    const inputValues = Object.fromEntries(mapValues);
+    return inputValues;
+  };
+
+  getLaunchesOptions = () => {
+    const inputValues = this.formatInputValues();
+    const options = this.getRetentionOptions();
+    const newOptions = options.map((elem) => {
+      const disabled =
+        elem.value !== 0 &&
+        (elem.value < inputValues.keepLogs || elem.value < inputValues.keepScreenshots);
+      return {
+        ...elem,
+        disabled,
+        title: this.props.intl.formatMessage(Messages.keepLaunchesTooltip),
+      };
+    });
+    return newOptions;
+  };
+
+  getLogOptions = () => {
+    const inputValues = this.formatInputValues();
+    const options = this.getRetentionOptions();
+    const newOptions = options.map((elem) => {
+      const disabled =
+        elem.value === 0
+          ? inputValues.keepLaunches !== Infinity
+          : elem.value < inputValues.keepScreenshots;
+      const hidden =
+        elem.value === 0
+          ? inputValues.keepLaunches !== Infinity
+          : elem.value > inputValues.keepLaunches;
+      return {
+        ...elem,
+        disabled,
+        hidden,
+        title: this.props.intl.formatMessage(Messages.keepLogsTooltip),
+      };
+    });
+    return newOptions;
+  };
+
+  getScreenshotsOptions = () => {
+    const inputValues = this.formatInputValues();
+    const options = this.getRetentionOptions();
+    const newOptions = options.map((elem) => {
+      const isHidden =
+        elem.value === 0 ? elem.value !== inputValues.keepLogs : elem.value > inputValues.keepLogs;
+      const hidden = inputValues.keepLogs === Infinity ? false : isHidden;
+      return { ...elem, hidden };
+    });
+    return newOptions;
+  };
 
   formatInterruptJobTimes = this.createValueFormatter(this.interruptJobTime);
 
@@ -204,7 +293,7 @@ export class GeneralTab extends Component {
             disabled={!canUpdateSettings(accountRole, userRole)}
             format={this.formatRetention}
           >
-            <InputDropdown options={this.retentionOptions} mobileDisabled />
+            <InputDropdown options={this.getLaunchesOptions()} mobileDisabled />
           </FormField>
           <FormField
             name="keepLogs"
@@ -217,7 +306,7 @@ export class GeneralTab extends Component {
             disabled={!canUpdateSettings(accountRole, userRole)}
             format={this.formatRetention}
           >
-            <InputDropdown options={this.retentionOptions} mobileDisabled />
+            <InputDropdown options={this.getLogOptions()} mobileDisabled />
           </FormField>
           <FormField
             name="keepScreenshots"
@@ -230,7 +319,7 @@ export class GeneralTab extends Component {
             disabled={!canUpdateSettings(accountRole, userRole)}
             format={this.formatRetention}
           >
-            <InputDropdown options={this.retentionOptions} mobileDisabled />
+            <InputDropdown options={this.getScreenshotsOptions()} mobileDisabled />
           </FormField>
           <FormField withoutProvider fieldWrapperClassName={cx('button-container')}>
             <div className={cx('submit-button')}>

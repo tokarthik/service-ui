@@ -41,17 +41,19 @@ export class InfoSection extends Component {
   static propTypes = {
     intl: PropTypes.object.isRequired,
     image: PropTypes.string.isRequired,
-    description: PropTypes.object.isRequired,
+    description: PropTypes.oneOfType([PropTypes.object.isRequired, PropTypes.array.isRequired]),
     title: PropTypes.string.isRequired,
     version: PropTypes.string,
     data: PropTypes.object.isRequired,
     onToggleActive: PropTypes.func,
+    showToggleConfirmationModal: PropTypes.func,
     isGlobal: PropTypes.bool,
   };
 
   static defaultProps = {
     version: '',
     onToggleActive: () => {},
+    showToggleConfirmationModal: () => {},
     isGlobal: false,
   };
 
@@ -65,12 +67,12 @@ export class InfoSection extends Component {
     this.checkIfTheExpandButtonNeeded();
   }
 
-  onToggleActiveHandler = () => {
+  toggleActiveHandler = () => {
     this.setState({
-      isEnabled: !this.props.data.enabled,
+      isEnabled: !this.state.isEnabled,
     });
 
-    this.props.onToggleActive(this.props.data).catch(() => {
+    this.props.onToggleActive({ ...this.props.data, enabled: this.state.isEnabled }).catch(() => {
       this.setState({
         isEnabled: this.props.data.enabled,
       });
@@ -98,6 +100,17 @@ export class InfoSection extends Component {
       expanded: true,
     });
 
+  onChangeHandler = () => {
+    const {
+      data: { name },
+      title,
+      showToggleConfirmationModal,
+    } = this.props;
+    const { isEnabled } = this.state;
+
+    showToggleConfirmationModal(isEnabled, title || name, this.toggleActiveHandler);
+  };
+
   render() {
     const {
       intl: { formatMessage },
@@ -116,7 +129,7 @@ export class InfoSection extends Component {
       <div className={cx('info-section')}>
         <img className={cx('logo')} src={image} alt={title} />
         <div className={cx('description-block')}>
-          <h2 className={cx('title')}>{title}</h2>
+          <h2 className={cx('title')}>{title || name}</h2>
           {version && (
             <span className={cx('version')}>{`${formatMessage(messages.version)} ${version}`}</span>
           )}
@@ -139,7 +152,7 @@ export class InfoSection extends Component {
                       })
                 }
               >
-                <InputSwitcher value={isEnabled} onChange={this.onToggleActiveHandler} />
+                <InputSwitcher value={isEnabled} onChange={this.onChangeHandler} />
               </div>
             </div>
           )}

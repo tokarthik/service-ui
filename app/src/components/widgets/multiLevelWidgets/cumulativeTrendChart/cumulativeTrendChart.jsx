@@ -14,29 +14,30 @@
  * limitations under the License.
  */
 
-import { PureComponent } from 'react';
+import React, { PureComponent } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames/bind';
 import isEqual from 'fast-deep-equal';
 import { connect } from 'react-redux';
 import { injectIntl } from 'react-intl';
-import { NoDataAvailable } from 'components/widgets';
+import { NoDataAvailableMaterializedView } from 'components/widgets/multiLevelWidgets/common/noDataAvailableMaterializedView';
 import { VirtualPopup } from 'components/main/virtualPopup';
 import { ChartJS } from 'components/widgets/common/chartjs';
 import {
   defectLinkSelector,
   statisticsLinkSelector,
   TEST_ITEMS_TYPE_LIST,
-  DEFAULT_LAUNCHES_LIMIT,
+  PROVIDER_TYPE_WIDGET,
 } from 'controllers/testItem';
 import { defectTypesSelector } from 'controllers/project';
 import { activeProjectSelector } from 'controllers/user';
 import { SCREEN_XS_MAX } from 'common/constants/screenSizeVariables';
-import { PASSED, FAILED, SKIPPED, INTERRUPTED, IN_PROGRESS } from 'common/constants/testStatuses';
+import { PASSED, FAILED, SKIPPED, INTERRUPTED } from 'common/constants/testStatuses';
 import { formatAttribute } from 'common/utils/attributeUtils';
+import { BEFORE_AFTER_METHOD_TYPES_SEQUENCE } from 'common/constants/methodTypes';
+import { STATE_READY, DEFECTS, TOTAL_KEY } from 'components/widgets/common/constants';
 import SearchIcon from 'common/img/search-icon-inline.svg';
 import FiltersIcon from 'common/img/filters-icon-inline.svg';
-import { DEFECTS, TOTAL_KEY } from '../../common/constants';
 import { getChartData } from './chartjsConfig';
 import { CumulativeChartLegend } from './legend/cumulativeChartLegend';
 import { ActionsPopup } from './actionsPopup';
@@ -104,6 +105,7 @@ export class CumulativeTrendChart extends PureComponent {
     isActionsPopupShown: false,
     selectedItem: null,
     isLegendControlsShown: true,
+    isLoading: false,
   };
 
   componentDidMount = () => {
@@ -114,8 +116,8 @@ export class CumulativeTrendChart extends PureComponent {
   componentDidUpdate(prevProps) {
     if (
       !isEqual(
-        prevProps.widget.contentParameters.widgetOptions.attributes,
-        this.props.widget.contentParameters.widgetOptions.attributes,
+        prevProps.widget.contentParameters.widgetOptions,
+        this.props.widget.contentParameters.widgetOptions,
       )
     ) {
       this.clearAttributes();
@@ -249,9 +251,19 @@ export class CumulativeTrendChart extends PureComponent {
     });
 
   fetchWidgetWithActiveAttributes = () => {
-    this.props.fetchWidget({
-      attributes: this.state.activeAttributes,
+    this.setState({
+      isLoading: true,
     });
+
+    this.props
+      .fetchWidget({
+        attributes: this.state.activeAttributes,
+      })
+      .then(() => {
+        this.setState({
+          isLoading: false,
+        });
+      });
   };
 
   clearAttributes = () => {
@@ -298,17 +310,20 @@ export class CumulativeTrendChart extends PureComponent {
       link = getDefectLink({
         defects: defectLocators,
         itemId: TEST_ITEMS_TYPE_LIST,
+        providerType: PROVIDER_TYPE_WIDGET,
+        widgetId: widget.id,
         compositeAttribute: activeAttributes.map(formatAttribute).join(','),
-        launchesLimit: DEFAULT_LAUNCHES_LIMIT,
-        launchId: selectedItem.content.launchIds.join(),
+        launchesLimit: widget.contentParameters.itemsCount,
+        filterTypes: BEFORE_AFTER_METHOD_TYPES_SEQUENCE,
         filterType: true,
       });
     } else {
       link = getStatisticsLink({
-        statuses: [PASSED, FAILED, SKIPPED, INTERRUPTED, IN_PROGRESS],
+        statuses: [PASSED, FAILED, SKIPPED, INTERRUPTED],
         compositeAttribute: activeAttributes.map(formatAttribute).join(','),
-        launchesLimit: DEFAULT_LAUNCHES_LIMIT,
-        launchId: selectedItem.content.launchIds.join(),
+        launchesLimit: widget.contentParameters.itemsCount,
+        providerType: PROVIDER_TYPE_WIDGET,
+        widgetId: widget.id,
       });
     }
 
@@ -316,7 +331,7 @@ export class CumulativeTrendChart extends PureComponent {
   };
 
   render() {
-    const { uncheckedLegendItems, userSettings, container, isPrintMode } = this.props;
+    const { uncheckedLegendItems, userSettings, container, isPrintMode, widget } = this.props;
     const {
       legendItems,
       chartData,
@@ -324,10 +339,12 @@ export class CumulativeTrendChart extends PureComponent {
       activeAttributes,
       isActionsPopupShown,
       isLegendControlsShown,
+      isLoading,
     } = this.state;
     const height = container.offsetHeight - this.getLegendHeight();
     const width = container.offsetWidth;
     const isChartDataAvailable = chartData && !!chartData.labels.length;
+    const widgetState = widget.contentParameters && widget.contentParameters.widgetOptions.state;
 
     return this.state.chartData ? (
       <div className={cx('cumulative-trend-chart')}>
@@ -345,7 +362,7 @@ export class CumulativeTrendChart extends PureComponent {
           isPrintMode={isPrintMode}
           isLegendControlsShown={isLegendControlsShown}
         />
-        {isChartDataAvailable ? (
+        {isChartDataAvailable && widgetState === STATE_READY && !isLoading ? (
           <ChartJS
             chartData={chartData}
             chartOptions={this.state.chartOptions}
@@ -354,7 +371,9 @@ export class CumulativeTrendChart extends PureComponent {
             width={width}
           />
         ) : (
-          <NoDataAvailable />
+          <div className={cx('no-data-wrapper')}>
+            <NoDataAvailableMaterializedView state={widgetState} isLoading={isLoading} />
+          </div>
         )}
         {isActionsPopupShown && (
           <VirtualPopup

@@ -55,7 +55,10 @@ export const btsIntegrationName = composeValidators([isNotEmpty, maxLength(55)])
 export const btsProject = composeValidators([isNotEmpty, maxLength(55)]);
 export const patternNameLength = composeValidators([isNotEmpty, maxLength(55)]);
 export const createPatternNameUniqueValidator = (patternId, patterns) => (newPatternName) =>
-  !patterns.some(({ id, name: patternName }) => patternName === newPatternName && id !== patternId);
+  !patterns.some(
+    ({ id, name: patternName }) =>
+      patternName.toLowerCase() === newPatternName.toLowerCase() && id !== patternId,
+  );
 export const analyzerMinShouldMatch = composeValidators([
   isNotEmpty,
   regex(/^([5-9][0-9])$|^100$/i),
@@ -71,6 +74,10 @@ export const launchNumericEntity = composeValidators([
 export const descriptionEntity = composeValidators([
   isNotEmpty,
   ({ value }) => composeValidators([isNotEmpty, maxLength(18)])(value),
+]);
+export const descriptionStepLevelEntity = composeValidators([
+  isNotEmpty,
+  ({ value }) => composeValidators([isNotEmpty, maxLength(256)])(value),
 ]);
 
 export const port = range(1, 65535);
@@ -89,7 +96,7 @@ export const attributesArray = (value) =>
   value.every((attribute) => attributeValue(attribute.value) && !attribute.edited);
 
 export const widgetNumberOfLaunches = composeValidators([isNotEmpty, range(1, 600)]);
-export const cumulativeItemsValidation = composeValidators([isNotEmpty, range(1, 15)]);
+export const cumulativeItemsValidation = composeValidators([isNotEmpty, range(1, 20000)]);
 export const healthCheckWidgetPassingRate = composeValidators([isNotEmpty, range(50, 100)]);
 export const flakyWidgetNumberOfLaunches = composeValidators([isNotEmpty, range(2, 600)]);
 export const launchesWidgetContentFields = composeValidators([isNotEmptyArray, minLength(4)]);

@@ -78,7 +78,7 @@ export class CommonWidgetControls extends Component {
     trackEvent: PropTypes.func,
     dashboards: PropTypes.arrayOf(PropTypes.object),
     activeDashboard: PropTypes.object,
-    onChange: PropTypes.func,
+    onChangeDashboard: PropTypes.func,
   };
 
   static defaultProps = {
@@ -88,7 +88,7 @@ export class CommonWidgetControls extends Component {
     trackEvent: () => {},
     dashboards: [],
     activeDashboard: {},
-    onChange: () => {},
+    onChangeDashboard: () => {},
     intl: {},
   };
 
@@ -109,8 +109,8 @@ export class CommonWidgetControls extends Component {
       trackEvent,
       eventsInfo,
       dashboards,
-      onChange,
-      activeDashboard: { widgets = [] },
+      onChangeDashboard,
+      activeDashboard: { widgets = [], share },
     } = this.props;
 
     return (
@@ -130,6 +130,7 @@ export class CommonWidgetControls extends Component {
         <ModalField label={formatMessage(messages.descriptionLabel)} labelWidth={FIELD_LABEL_WIDTH}>
           <FieldProvider
             name="description"
+            maxLength="1500"
             placeholder={formatMessage(messages.descriptionPlaceholder)}
             onChange={() => trackEvent(eventsInfo.changeDescription)}
           >
@@ -141,13 +142,19 @@ export class CommonWidgetControls extends Component {
             name="share"
             format={Boolean}
             parse={Boolean}
-            onChange={() => trackEvent(eventsInfo.shareWidget)}
+            onChange={() => {
+              !share && trackEvent(eventsInfo.shareWidget);
+            }}
           >
-            <InputBigSwitcher />
+            <InputBigSwitcher disabled={share} />
           </FieldProvider>
         </ModalField>
         {this.isShowDashboardsList() && (
-          <FieldProvider name="selectedDashboard" dashboards={dashboards} onChange={onChange}>
+          <FieldProvider
+            name="selectedDashboard"
+            dashboards={dashboards}
+            onChange={onChangeDashboard}
+          >
             <DashboardControl />
           </FieldProvider>
         )}

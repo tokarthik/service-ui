@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import { takeLatest, call, put, all, select, take } from 'redux-saga/effects';
+import { takeLatest, takeEvery, call, put, all, select, take } from 'redux-saga/effects';
 import { URLS } from 'common/urls';
 import { fetch } from 'common/utils/fetch';
 import { showModalAction, HIDE_MODAL } from 'controllers/modal';
@@ -28,21 +28,28 @@ import {
   activeLogIdSelector,
 } from 'controllers/log/selectors';
 import { DETAILED_LOG_VIEW } from 'controllers/log/constants';
+import { downloadFile } from 'common/utils/downloadFile';
 import { JSON as JSON_TYPE } from 'common/constants/fileTypes';
 import { PAGE_KEY, SIZE_KEY } from 'controllers/pagination';
 import {
-  ATTACHMENT_IMAGE_MODAL_ID,
   ATTACHMENT_CODE_MODAL_ID,
   ATTACHMENT_HAR_FILE_MODAL_ID,
-  OPEN_ATTACHMENT_ACTION,
+  ATTACHMENT_IMAGE_MODAL_ID,
   FETCH_ATTACHMENTS_CONCAT_ACTION,
   ATTACHMENTS_NAMESPACE,
   DEFAULT_PAGE_SIZE,
   DEFAULT_LOADED_PAGES,
   FETCH_FIRST_ATTACHMENTS_ACTION,
+  DOWNLOAD_ATTACHMENT_ACTION,
+  OPEN_ATTACHMENT_IN_MODAL_ACTION,
+  OPEN_ATTACHMENT_IN_BROWSER_ACTION,
 } from './constants';
-import { setActiveAttachmentAction } from './actionCreators';
-import { getAttachmentModalId, extractExtension, isTextWithJson } from './utils';
+import {
+  getAttachmentModalId,
+  extractExtension,
+  isTextWithJson,
+  createAttachmentName,
+} from './utils';
 
 function* getAttachmentURL() {
   const activeProject = yield select(activeProjectSelector);
@@ -77,36 +84,31 @@ function* fetchFirstAttachments({ payload }) {
     [PAGE_KEY]: 1,
     ...payload.params,
   };
-  yield put(setActiveAttachmentAction(null));
   yield call(fetchAttachmentsConcat, { payload: { params } });
 }
 
-export function fetchImageData({ projectId, binaryId }) {
-  return fetch(URLS.getFileById(projectId, binaryId), { responseType: 'blob' });
+export function fetchFileData({ projectId, id }, params) {
+  return fetch(URLS.getFileById(projectId, id), params);
 }
 
-export function fetchData({ projectId, binaryId }) {
-  return fetch(URLS.getFileById(projectId, binaryId));
+/* HAR */
+function* openHarModalWorker(data) {
+  const harData = yield call(fetchFileData, data);
+  yield put(showModalAction({ id: ATTACHMENT_HAR_FILE_MODAL_ID, data: { harData } }));
 }
 
 /* IMAGE */
-function* openImageModalsWorker({ projectId, binaryId }) {
-  const data = yield call(fetchImageData, { projectId, binaryId });
-  const imageURL = URL.createObjectURL(data);
+function* openImageModalsWorker(data) {
+  const imageData = yield call(fetchFileData, data, { responseType: 'blob' });
+  const imageURL = URL.createObjectURL(imageData);
   yield put(showModalAction({ id: ATTACHMENT_IMAGE_MODAL_ID, data: { image: imageURL } }));
   yield take(HIDE_MODAL);
   URL.revokeObjectURL(imageURL);
 }
 
-/* HAR */
-function* openHarModalsWorker(data) {
-  const harData = yield call(fetchData, data);
-  yield put(showModalAction({ id: ATTACHMENT_HAR_FILE_MODAL_ID, data: { harData } }));
-}
-
 /* BINARY */
-function* openBinaryModalsWorker(data) {
-  const binaryData = yield call(fetchData, data);
+function* openBinaryModalWorker(data) {
+  const binaryData = yield call(fetchFileData, data);
   const content =
     data.extension === JSON_TYPE && !isTextWithJson(data.contentType)
       ? JSON.stringify(binaryData, null, 4)
@@ -114,35 +116,45 @@ function* openBinaryModalsWorker(data) {
   yield put(
     showModalAction({
       id: ATTACHMENT_CODE_MODAL_ID,
-      data: { extension: data.extension, content },
+      data: { extension: data.extension, content, id: data.id },
     }),
   );
 }
 
 const ATTACHMENT_MODAL_WORKERS = {
   [ATTACHMENT_IMAGE_MODAL_ID]: openImageModalsWorker,
-  [ATTACHMENT_HAR_FILE_MODAL_ID]: openHarModalsWorker,
-  [ATTACHMENT_CODE_MODAL_ID]: openBinaryModalsWorker,
+  [ATTACHMENT_HAR_FILE_MODAL_ID]: openHarModalWorker,
+  [ATTACHMENT_CODE_MODAL_ID]: openBinaryModalWorker,
 };
 
-function* openAttachment({ payload: { id, contentType } }) {
+function* openAttachmentInModal({ payload: { id, contentType } }) {
   const modalId = getAttachmentModalId(contentType);
   const projectId = yield select(activeProjectSelector);
+
   if (modalId) {
-    const data = { projectId, binaryId: id, extension: extractExtension(contentType), contentType };
+    const data = { projectId, id, extension: extractExtension(contentType), contentType };
     try {
       yield call(ATTACHMENT_MODAL_WORKERS[modalId], data);
     } catch (e) {} // eslint-disable-line no-empty
-  } else {
-    const data = yield call(fetch, URLS.getFileById(projectId, id), { responseType: 'blob' });
+  }
+}
 
-    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(data);
-    } else {
-      const url = URL.createObjectURL(data);
-      const newWindow = window.open(url);
-      newWindow.onbeforeunload = () => URL.revokeObjectURL(url);
-    }
+function* downloadAttachment({ payload: { id, contentType } }) {
+  const projectId = yield select(activeProjectSelector);
+
+  downloadFile(URLS.getFileById(projectId, id), createAttachmentName(id, contentType));
+}
+
+function* openAttachmentInBrowser({ payload: id }) {
+  const projectId = yield select(activeProjectSelector);
+  const data = yield call(fetch, URLS.getFileById(projectId, id), { responseType: 'blob' });
+
+  if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+    window.navigator.msSaveOrOpenBlob(data);
+  } else {
+    const url = URL.createObjectURL(data);
+    const newWindow = window.open(url);
+    newWindow.onbeforeunload = () => URL.revokeObjectURL(url);
   }
 }
 
@@ -154,10 +166,24 @@ function* watchFetchFirstAttachments() {
   yield takeLatest(FETCH_FIRST_ATTACHMENTS_ACTION, fetchFirstAttachments);
 }
 
-function* watchOpenAttachment() {
-  yield takeLatest(OPEN_ATTACHMENT_ACTION, openAttachment);
+function* watchOpenAttachmentInModal() {
+  yield takeLatest(OPEN_ATTACHMENT_IN_MODAL_ACTION, openAttachmentInModal);
+}
+
+function* watchDownloadAttachment() {
+  yield takeEvery(DOWNLOAD_ATTACHMENT_ACTION, downloadAttachment);
+}
+
+function* watchOpenAttachmentInBrowser() {
+  yield takeEvery(OPEN_ATTACHMENT_IN_BROWSER_ACTION, openAttachmentInBrowser);
 }
 
 export function* attachmentSagas() {
-  yield all([watchOpenAttachment(), watchFetchAttachments(), watchFetchFirstAttachments()]);
+  yield all([
+    watchOpenAttachmentInModal(),
+    watchOpenAttachmentInBrowser(),
+    watchDownloadAttachment(),
+    watchFetchAttachments(),
+    watchFetchFirstAttachments(),
+  ]);
 }

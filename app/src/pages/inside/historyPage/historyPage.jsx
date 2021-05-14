@@ -19,7 +19,6 @@ import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 import track from 'react-tracking';
 import { PageLayout, PageSection } from 'layouts/pageLayout';
-import { activeFilterSelector } from 'controllers/filter';
 import {
   refreshHistoryAction,
   selectedHistoryItemsSelector,
@@ -31,12 +30,8 @@ import {
   parentItemSelector,
   isTestItemsListSelector,
   isStepLevelSelector,
-  isFilterParamsExistsSelector,
-  filteredItemStatisticsSelector,
-  FILTERED_ITEM_STATISTICS_INITIAL_STATE,
 } from 'controllers/testItem';
 import { HISTORY_PAGE_EVENTS } from 'components/main/analytics/events';
-import { InfoLine, InfoLineListView } from 'pages/inside/common/infoLine';
 import { HistoryToolbar } from './historyToolbar';
 import { HistoryView } from './historyView';
 
@@ -44,11 +39,8 @@ import { HistoryView } from './historyView';
   (state) => ({
     selectedItems: selectedHistoryItemsSelector(state),
     parentItem: parentItemSelector(state),
-    currentFilter: activeFilterSelector(state),
     isTestItemsList: isTestItemsListSelector(state),
     isStepLevel: isStepLevelSelector(state),
-    isFilterParamsExists: isFilterParamsExistsSelector(state),
-    filteredItemStatistics: filteredItemStatisticsSelector(state),
   }),
   {
     refreshHistoryAction,
@@ -66,13 +58,10 @@ export class HistoryPage extends Component {
     }).isRequired,
     selectedItems: PropTypes.arrayOf(PropTypes.object),
     parentItem: PropTypes.object,
-    currentFilter: PropTypes.object,
     filterErrors: PropTypes.object,
     filterEntities: PropTypes.array,
     isTestItemsList: PropTypes.bool,
     isStepLevel: PropTypes.bool,
-    isFilterParamsExists: PropTypes.bool,
-    filteredItemStatistics: PropTypes.object,
     onFilterAdd: PropTypes.func,
     onFilterRemove: PropTypes.func,
     onFilterValidate: PropTypes.func,
@@ -84,13 +73,10 @@ export class HistoryPage extends Component {
   static defaultProps = {
     selectedItems: [],
     parentItem: null,
-    currentFilter: null,
     filterErrors: {},
     filterEntities: [],
     isTestItemsList: false,
     isStepLevel: false,
-    isFilterParamsExists: false,
-    filteredItemStatistics: FILTERED_ITEM_STATISTICS_INITIAL_STATE,
     onFilterAdd: () => {},
     onFilterRemove: () => {},
     onFilterValidate: () => {},
@@ -107,7 +93,7 @@ export class HistoryPage extends Component {
     this.props.onUnselectAll();
   }
 
-  onChangeHistoryBase = (historyBase) => {
+  changeHistoryBase = (historyBase) => {
     this.props.tracking.trackEvent(HISTORY_PAGE_EVENTS.SELECT_HISTORY_BASE);
 
     if (historyBase !== this.state.historyBase) {
@@ -118,43 +104,19 @@ export class HistoryPage extends Component {
     }
   };
 
-  onSelectItem = (item) => {
+  selectItem = (item) => {
     this.props.tracking.trackEvent(HISTORY_PAGE_EVENTS.SELECT_HISTORY_ITEM);
     this.props.toggleItemSelection(item);
   };
 
-  onUnselectItem = (item) => {
+  unselectItem = (item) => {
     this.props.tracking.trackEvent(HISTORY_PAGE_EVENTS.CLICK_CLOSE_ICON_FROM_SELECTION);
     this.props.toggleItemSelection(item);
   };
 
-  onUnselectAllItems = () => {
+  unselectAllItems = () => {
     this.props.tracking.trackEvent(HISTORY_PAGE_EVENTS.CLICK_CLOSE_ICON_ALL_SELECTION);
     this.props.onUnselectAll();
-  };
-
-  getInfoLine = () => {
-    const {
-      isTestItemsList,
-      currentFilter,
-      parentItem,
-      isFilterParamsExists,
-      filteredItemStatistics,
-    } = this.props;
-
-    if (isTestItemsList) {
-      return !!currentFilter && <InfoLineListView data={currentFilter} />;
-    }
-
-    return (
-      !!parentItem && (
-        <InfoLine
-          data={parentItem}
-          detailedView={isFilterParamsExists}
-          detailedStatistics={filteredItemStatistics}
-        />
-      )
-    );
   };
 
   refreshPage = () => {
@@ -163,8 +125,6 @@ export class HistoryPage extends Component {
 
   render() {
     const {
-      currentFilter,
-      parentItem,
       selectedItems,
       toggleItemSelection,
       onUnselectAll,
@@ -172,25 +132,24 @@ export class HistoryPage extends Component {
       isTestItemsList,
       ...rest
     } = this.props;
-    const infoLine = this.getInfoLine();
 
     return (
       <PageLayout>
         <PageSection>
           <HistoryToolbar
             onRefresh={this.refreshPage}
-            infoLine={infoLine}
-            onUnselect={this.onUnselectItem}
-            onUnselectAll={this.onUnselectAllItems}
+            onUnselect={this.unselectItem}
+            onUnselectAll={this.unselectAllItems}
             selectedItems={selectedItems}
             withGroupOperations={isStepLevel}
+            isTestItemsList={isTestItemsList}
             {...rest}
           />
           <HistoryView
             refreshHistory={this.refreshPage}
             historyBase={this.state.historyBase}
-            onChangeHistoryBase={this.onChangeHistoryBase}
-            onSelectItem={this.onSelectItem}
+            onChangeHistoryBase={this.changeHistoryBase}
+            onSelectItem={this.selectItem}
             selectedItems={selectedItems}
             withGroupOperations={isStepLevel}
             isTestItemsList={isTestItemsList}

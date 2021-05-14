@@ -236,6 +236,7 @@ export class LaunchSuiteGrid extends PureComponent {
       isGridRowHighlighted: PropTypes.bool,
       highlightedRowId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }),
+    noItemsBlock: PropTypes.element,
   };
   static defaultProps = {
     data: [],
@@ -261,19 +262,29 @@ export class LaunchSuiteGrid extends PureComponent {
       isGridRowHighlighted: false,
       highlightedRowId: null,
     }),
+    noItemsBlock: null,
   };
   getColumns() {
+    const {
+      events,
+      withHamburger,
+      onEditItem,
+      onDeleteItem,
+      onMove,
+      onForceFinish,
+      onAnalysis,
+      onPatternAnalysis,
+    } = this.props;
     const hamburgerColumn = {
       component: HamburgerColumn,
       customProps: {
-        onDeleteItem: this.props.onDeleteItem,
-        onMove: this.props.onMove,
-        onForceFinish: this.props.onForceFinish,
-        onAnalysis: this.props.onAnalysis,
-        onPatternAnalysis: this.props.onPatternAnalysis,
+        onDeleteItem,
+        onMove,
+        onForceFinish,
+        onAnalysis,
+        onPatternAnalysis,
       },
     };
-    const { events } = this.props;
     const columns = [
       {
         id: ENTITY_NAME,
@@ -287,10 +298,11 @@ export class LaunchSuiteGrid extends PureComponent {
         withFilter: true,
         filterEventInfo: events.NAME_FILTER,
         customProps: {
-          onEditItem: this.props.onEditItem,
+          onEditItem,
           onClickAttribute: this.handleAttributeFilterClick,
           onOwnerClick: this.handleOwnerFilterClick,
           events,
+          withExtensions: withHamburger, // Use extensions for launch level only
         },
         sortingEventInfo: events.NAME_SORTING,
       },
@@ -419,48 +431,61 @@ export class LaunchSuiteGrid extends PureComponent {
         sortingEventInfo: events.TI_SORTING,
       },
     ];
-    if (this.props.withHamburger) {
+    if (withHamburger) {
       columns.splice(0, 0, hamburgerColumn);
     }
     return columns;
   }
 
   handleAttributeFilterClick = (attribute) => {
-    this.props.onFilterClick([
-      {
-        id: ENTITY_ATTRIBUTE_KEYS,
-        value: {
-          filteringField: ENTITY_ATTRIBUTE_KEYS,
-          condition: CONDITION_HAS,
-          value: attribute.key || '',
+    this.props.onFilterClick(
+      [
+        {
+          id: ENTITY_ATTRIBUTE_KEYS,
+          value: {
+            filteringField: ENTITY_ATTRIBUTE_KEYS,
+            condition: CONDITION_HAS,
+            value: attribute.key || '',
+          },
         },
-      },
-      {
-        id: ENTITY_ATTRIBUTE_VALUES,
-        value: {
-          filteringField: ENTITY_ATTRIBUTE_VALUES,
-          condition: CONDITION_HAS,
-          value: attribute.value || '',
+        {
+          id: ENTITY_ATTRIBUTE_VALUES,
+          value: {
+            filteringField: ENTITY_ATTRIBUTE_VALUES,
+            condition: CONDITION_HAS,
+            value: attribute.value || '',
+          },
         },
-      },
-    ]);
+      ],
+      true,
+    );
   };
 
   handleOwnerFilterClick = (owner) =>
-    this.props.onFilterClick([
-      {
-        id: ENTITY_USER,
-        value: {
-          filteringField: ENTITY_NAME,
-          condition: CONDITION_IN,
-          value: owner || '',
-        },
+    this.props.onFilterClick({
+      id: ENTITY_USER,
+      value: {
+        filteringField: ENTITY_NAME,
+        condition: CONDITION_IN,
+        value: owner || '',
       },
-    ]);
+    });
+
+  renderNoItemsBlock = () => {
+    const {
+      intl: { formatMessage },
+      noItemsBlock,
+    } = this.props;
+
+    if (noItemsBlock) {
+      return noItemsBlock;
+    }
+
+    return <NoItemMessage message={formatMessage(COMMON_LOCALE_KEYS.NO_RESULTS)} />;
+  };
 
   render() {
     const {
-      intl: { formatMessage },
       data,
       onChangeSorting,
       sortingColumn,
@@ -491,9 +516,7 @@ export class LaunchSuiteGrid extends PureComponent {
           onFilterClick={onFilterClick}
           rowHighlightingConfig={rowHighlightingConfig}
         />
-        {!data.length && !loading && (
-          <NoItemMessage message={formatMessage(COMMON_LOCALE_KEYS.NO_RESULTS)} />
-        )}
+        {!data.length && !loading && this.renderNoItemsBlock()}
       </Fragment>
     );
   }
